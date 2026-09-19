@@ -500,3 +500,82 @@
    三方交叉对账 0 差异；坐标 16/16 指向城市区域（9 城 top=road），无海洋/空地误指。
 10. [执行·实测] 0.3.0 稳定：并发 4 请求全部 200（3.9~17.9ms）无死锁，
     LogOutput 0 异常堆栈、0 插件报错，HarmonyX 仍 5 条无增长。
+
+## 27. QQ bot v1 离线骨架（2026-09 R4 轮）
+> 范围：R4 轮离线完成的八个模块 + 单测（单进程）；真机联机（R4-V）另见 RUNNER-HANDOFF。
+> 位置：src\qqbot\；venv = .venv-qqbot（Python 3.10.2）；测试根 = src\qqbot（pytest.ini）。
+
+### 27.1 八模块与单向依赖（D-029：九改八，binding 并入 ledger）
+- adapter —— WS 收发 / echo 配对 / 重连，唯一接触 OneBot 协议。
+- parser   —— 文法（纯函数，零 IO）。
+- resolver —— 目标 → 坐标：城市缓存 + 对账、军队现取。
+- ledger   —— 点数 / 冻结 / 退款 / 冷却 / 绑定表（bindings 并入，D-029）。
+- catalog  —— 商品表（价格 / 冷却 / 是否待批 / 文案）。
+- executor —— 唯一桥接出口（只允许它调用 urllib），串行队列 + 30 s 超时。
+- receipt  —— 两段式回执、延迟结算。
+- approval —— 待批队列（容量 5 / 60 s 超时 / 三条退款路径）。
+- 依赖单向无环，全由 bot.py 正向装配。
+- ★ executor 唯一 HTTP 出口 grep 闸门：
+  `grep -rn "urlopen" src\qqbot\` 只许命中 executor.py；
+  更严：`grep -rnE "urlopen|requests\.|httpx\.|http\.client|aiohttp" src\qqbot\` 也只许命中 executor.py。
+
+### 27.2 NapCat 接入（D-024，双模式，默认反向）
+- 默认反向：bot 作 WS 服务端，监听 127.0.0.1:6199，路径 /ws；NapCat 侧 websocketClients
+  enable=true、url=ws://localhost:6199/ws——本机现配置即此，零改动（无 websocketServers 项）。
+- forward 可选：NapCat websocketServers（127.0.0.1:3001），bot 作客户端；config 切换。
+- ★ messagePostFormat="array"：需按段解析 @ 与文本，string 格式会把 CQ 码混进正文。
+- ★ reportSelfMessage=false：防止 bot 自己的回执被当成新指令（自激环）。
+- heartInterval=30000 心跳；反向模式 bot 若重启，NapCat 按 reconnectInterval=30000
+  最长 30 秒才重连，开发期需容忍。
+- 与 NoneBot2 对比：本项目不上 NoneBot，理由不同（D-024：复用现配置、零改动）。
+
+### 27.3 websockets 16.1.1 API 差异（R4-2c 实测；照抄 HANDOFF-R4 §1，最易踩坑）
+[联网核实 2026-09-19，官方 upgrade 文档 stable 版]
+- 新 asyncio 实现自 14.0 起为默认；旧实现移入 websockets.legacy 并已弃用，
+  官方承诺维护至 2029 年 11 月。照老教程写必然跑不起来。
+- 导入路径：websockets.asyncio.server.serve / websockets.asyncio.client.connect。
+- 服务端 handler 只收一个参数；path 参数已移除（10.1 起无必要、13.0 起弃用），
+  路径改从 connection.request.path 取。
+- open / closed 属性已移除；改用 connection.state is State.OPEN，
+  或直接 try/except ConnectionClosed。
+- serve() 首参由 ws_handler 改名 handler（按位置传无感）。
+- 客户端 async for ... in connect(...) 自带重连，但只对网络错误与 HTTP 5xx 重试，
+  其余视为致命；要老行为需传 process_exception=lambda exc: exc。
+- ★ 细节实装时以官方 upgrade 文档复核，勿凭记忆硬写。
+
+### 27.4 pytest 配置（pytest-asyncio 1.4.0 strict 模式）
+默认 asyncio_mode = strict：异步测试不加标记会被跳过或报错；
+asyncio_default_fixture_loop_scope 未设则刷警告。
+故 src\qqbot\pytest.ini 写三项：asyncio_mode = auto、loop_scope = function、testpaths = tests。
+异步测试直接 async def test_ 即可，勿加 @pytest.mark.asyncio。
+跑法：从项目根（含 src\qqbot 与 .venv-qqbot 的目录）执行 `python -m pytest src\qqbot -q`。
+
+### 27.5 C1~C6 六条硬约束 → 模块 / 函数 / 测试（防日后误删防呆）
+| 硬约束 | 落点模块.函数 | 对应测试 |
+|---|---|---|
+| C1 打击两段式回执 | receipt.ack_attack（受理）+ receipt.settle_attack（延迟结算） | tests/test_receipt.py::test_d_two_phase_ordering |
+| C2 播报前先判 max_warriors==0 | broadcaster.render_situation | tests/test_broadcaster.py::test_j_max_warriors_zero_no_ratio |
+| C3 warrior_slots/max 只作「上一周期快照」 | broadcaster.render_situation | tests/test_broadcaster.py::test_j_max_warriors_positive_shows_ratio |
+| C4 不用 is_alive 判城毁 | resolver.resolve_city（只看是否在列表中；is_alive 仅记录） | tests/test_resolver.py::test_d_is_alive_false_but_present_live |
+| C5 与 8723 count 对账 | resolver._refresh_cities（退避重拉 ≤3 次；未过一律 UNSTABLE） | tests/test_resolver.py::test_b_reconcile_mismatch_then_match / test_c_unstable_wins_over_city_gone |
+| C6 非暂停态投点前重取坐标 | resolver 新鲜度机制（军队每次现取不缓存；城市缓存 TTL 10 s，_cached 到期即重拉） | tests/test_resolver.py::test_a_ttl_cache_hit_then_refetch |
+★ C6 真正「invoke 前 1 s 内重取并投点」的强制，落在联机写路径（R4-V：绑定目标值后、
+  invoke 前重取）；离线骨架只搭了新鲜度脚手架，勿误删它的缓存/对账逻辑。
+
+### 27.6 ledger TOCTOU 教训（R4-2b）
+hold_attack / hold_build 的「查冷却 → hold → 写冷却」三步若各自 _txn 独立，锁会在步间
+释放 → 并发可绕过个人 60 s 冷却。修法与判据：
+- _txn 必须可重入：threading.RLock + 嵌套深度计数，深度 0 才 BEGIN、回 0 才 COMMIT，
+  不用 SAVEPOINT。
+- 组合操作「查 + 改」必须用最外层 _txn 包住全过程，在同一事务内完成。
+★ 反向验证过：退回普通 Lock（不可重入）后，5 并发 hold_build 有 2 个绕过 60 s 冷却
+  ——不是理论风险，是实测窗口。
+
+### 27.7 踩坑实录（本机环境）
+1. 127.0.0.1:17892 回环代理会破坏 schannel TLS，导致 git push 到 github 失败；
+   遇 push 失败先排除该代理（走直连 / 无代理绕过）。
+2. PowerShell 5.1 读无 BOM 的 .ps1 会按 GBK 解释，中文脚本解析崩溃；
+   写 .ps1 用 UTF-8 with BOM，或避免在脚本里内嵌中文字面量。
+3. PowerShell 下 grep 正则的转义层数与 bash 不同——把形如 `<盘符>:\...` 的用户目录
+   反斜杠路径直接写进正则，会因多/少一层转义而静默 0 命中；本机曾因此误判 0 命中。
+   核查路径类 grep 时改用单引号字符串包裹，或改用 Python re（case-sensitive、转义可控）。

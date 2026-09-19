@@ -314,3 +314,50 @@
 - 影响：QQBOT-V1-ARCH 十节所写 config.example.toml 改为 config.example.json，
   属实现偏差，记入 SESSION-LOG，设计稿正文本轮不改。
 - 回退条件：若后续需要连接池/HTTP2/高频并发，再引入 httpx 并单独记一条决策。
+
+## D-026 meteorite 进待批队列（Q3 拍板）
+- 日期：2026-09-19
+- 状态：有效
+- 决策：meteorite 加入待批队列（一人一令一码、60 秒超时，放行后执行）；
+  lightning 保持 needs_approval=false。
+- 理由：12 点约等于攒 2 小时，一条群消息即不可逆的城市级打击，60 秒反悔窗口成本
+  远低于误伤代价。lightning 保持 needs_approval=false（3 点，且打城市另有二次确认）。
+- 影响面：catalog 默认值（meteorite.needs_approval=true，R4-2d 已改）、approval 路径、
+  R4-V 演示流程。可回退（改一个布尔值）。
+
+## D-027 费率与价目定稿（Q2 拍板）
+- 日期：2026-09-19
+- 状态：有效
+- 决策：攒点 10 分钟 1 点 / 上限 30 / 新人 5；lightning 3；meteorite 12 + 城市冷却
+  1800 秒；七种墙各 1；living_house 1；建设类个人冷却 60 秒。
+- 理由：Q2 拍板；v1 以时间为货币（D-015 / D-023）。
+- 影响面：已写入 config.example.json 默认值（R4-2d），catalog 与 config 保持一致。
+
+## D-028 BridgeResult 增加 body 只读字段
+- 日期：2026-09-19
+- 状态：有效
+- 决策：executor 的 BridgeResult 增加 body 只读字段。三约束：① 解析失败 body=None，
+  且不影响 status 判定；② digest 仍是写 ledger.bridge_resp_digest 的唯一来源，
+  body 禁止落库 / 进 ledger_log；③ body 超 64 KB 置 None。
+- 理由：resolver 需读桥接结构化数据，原设计只返摘要是参谋侧疏漏（摘要供账本审计，
+  非供业务读数）。否决了「另开 only-data 通道」方案，因其在「HTTP 只走 executor」
+  闸门上凿洞。
+- 影响面：executor.py（BridgeResult / _classify）、resolver / receipt / broadcaster 读
+  body；R4-2d 已实装并通过 D-0 裁决要求的三条约束测试。
+
+## D-029 binding 并入 ledger，模块数由九改八
+- 日期：2026-09-19
+- 状态：有效
+- 决策：binding 不再是独立模块，并入 ledger；ARCH §2 的九模块划分据此修订为八模块。
+- 理由：绑定表与点数表同处一个 sqlite，硬拆成独立模块需跨模块开事务。
+- 影响面：ARCH §2 模块表（binding 行并入 ledger 行）；ledger 提供
+  bind / rebind / mark_dead / get_binding；R4-2d 装配与 R4-3 文档同步。
+
+## D-030 v1 待批队列不持久化（已知缺口，非遗漏）
+- 日期：2026-09-19
+- 状态：有效
+- 决策：v1 待批队列不持久化；ledger.pending_approval 表已建但未启用，
+  approval 为进程内内存队列。
+- 理由：避免持久化复杂度，v1 暂以内存队列承载（容量 5 / 时限 60 / 退款三条路径）。
+- 影响面：后果——bot 在待批中途重启，在队申请连同已冻结的点一起蒸发，既没退也没花。
+  ★ R4-V 联机时不得在待批中途重启 bot。持久化留待 v1.1。

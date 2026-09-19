@@ -5,7 +5,7 @@
 
 ## 一、进程拓扑
 QQ 群 ←→ NapCat（QQ 客户端侧，OneBot v11 实现）
-        ↕ 正向 WebSocket 双工（NapCat 作 WS 服务端，bot 作客户端）
+        ↕ WebSocket 双工（默认反向：bot 作 WS 服务端监听 127.0.0.1:6199/ws，D-024）
       bot.py（单进程 asyncio）
         ↓ HTTP
       8723 worldbox-mcp 0.4.0（28 命令）
@@ -13,26 +13,40 @@ QQ 群 ←→ NapCat（QQ 客户端侧，OneBot v11 实现）
         ↓
       ledger.sqlite3（绑定表 + 行动点 + 冷却 + 待批 + 审计）
 
-1.1 连接方式 = NapCat「WebSocket 服务端」（正向 WS）。
-    NapCat 侧：websocketServers 加一项，enable=true、host=127.0.0.1、port=3001、
-    token 必填、messagePostFormat="array"、reportSelfMessage=false、heartInterval=30000。
-    ★ array 格式是硬要求：需要按段解析 @ 与文本，string 格式会把 CQ 码混进正文。
+1.1 连接方式：双模式适配（D-024），默认反向 WS（bot 作 WS 服务端）。
+    默认（反向）：bot 监听 127.0.0.1:6199，路径 /ws；NapCat 侧 websocketClients
+    （反向 WS 客户端）enable=true、指向 ws://localhost:6199/ws。
+    依据 D-024 与本机 NapCat 现状——当前配置正是「反向 WS 客户端
+    ws://localhost:6199/ws」，并无 websocketServers 项，故 v1 默认反向
+    = 复用现配置、零改动。
+    ★ messagePostFormat="array" 是硬要求：需要按段解析 @ 与文本，
+      string 格式会把 CQ 码混进正文。
     ★ reportSelfMessage=false 防止 bot 自己的回执被当成新指令（自激环）。
-    bot 侧：websockets 客户端，断线指数退避重连（1→2→4→8→30 秒封顶）。
-    ★ bot 不监听任何端口，与 8723/8724/6099 无冲突面。
+    反向模式由 bot 监听端口；NapCat 断链按 reconnectInterval=30000 最长 30 秒
+    重连，开发期需容忍（D-024 影响面）。
+    可选（正向）：config 切 forward 后由 NapCat 作 WS 服务端（websocketServers
+    加项、端口 3001）、bot 作客户端，断线指数退避重连（1→2→4→8→30 秒封顶），
+    heartInterval=30000。
 1.2 双工单连接同时承载「事件上报」与「API 调用」，发消息不需要另开 HTTP 通路。
     API 调用带 echo 字段做请求-响应配对（OneBot v11 标准）。
-1.3 若将来换 NoneBot2，改为反向 WS（NapCat websocketClients →
+1.3 若将来换 NoneBot2，仍用反向 WS（NapCat websocketClients →
     ws://127.0.0.1:8080/onebot/v11/ws，NoneBot 侧需 ReverseDriver）。
     该切换只影响 adapter 层，parser 以下不变。
+
+【原 §1.1 正向 WS 表述 — 已作废（D-024）；保留作考古线索，处理方式同 DESIGN-BRIEF】
+    NapCat 侧：websocketServers 加一项，enable=true、host=127.0.0.1、port=3001、
+    token 必填、messagePostFormat="array"、reportSelfMessage=false、heartInterval=30000。
+    bot 侧：websockets 客户端，断线指数退避重连（1→2→4→8→30 秒封顶）。
+    ★ bot 不监听任何端口，与 8723/8724/6099 无冲突面。
 1.4 心跳 30 秒无到达视为链路死亡 → 主动重连，并在恢复后向群播一条「链路已恢复」。
 
-## 二、模块划分（一个进程内的九个模块，单向依赖）
+## 二、模块划分（一个进程内的八个模块，单向依赖；D-029 由九改八）
 adapter   ← WS 收发、echo 配对、重连；唯一接触 OneBot 协议的地方
 parser    ← 群消息 → 结构化指令（文法见三节），不做任何 IO
-binding   ← QQ号 ↔ kingdom_id 绑定表读写
-resolver  ← 符号化目标 → 精确坐标（走 8724 list_cities_ex / 8723 query_actors）
-ledger    ← 行动点账本、冻结/扣款/退款、冷却表
+resolver  ← 符号化目标 → 精确坐标（走 8724 list_cities_ex / list_armies；
+            8723 list_cities 仅供 count 对账；query_actors 取坐标已作废）
+ledger    ← 行动点账本、冻结/扣款/退款、冷却表、绑定表读写
+            （D-029：binding 并入 ledger，不再单列模块）
 catalog   ← 商品表：价格、冷却、是否进待批、文案
 executor  ← 唯一调用 8723/8724 的地方；串行队列
 receipt   ← 两段式回执与延迟结算
@@ -82,6 +96,10 @@ approval  ← 待批队列、60 秒超时
     （首拉 1 城、复拉 6 城，代码无缺陷）。
 5.5 C4：不得用 is_alive 判断「城已毁」（isRekt 看建筑全毁，非人口归零，
     is_alive==false 至今从未观测到）。城市消失与否只以「是否还出现在列表里」为准。
+    实装注记（R4-2d-fix 回归 C4）：resolver 存活判定唯一依据为「city_id 是否仍
+    出现在 list_cities_ex 列表中」，is_alive 字段仅记录不参与判定；CITY_GONE
+    判定前必须先过 5.4 的 C5 对账——对账未通过一律 UNSTABLE，绝不误判成
+    「城已毁」（加载不全 ≠ 城消失，防误伤）。
 
 ## 六、行动点账本（ledger）
 6.1 v1 用时间当货币（D4）：在线/在群成员每 10 分钟 +1 点，上限 30 点，
@@ -162,8 +180,7 @@ config 键：napcat_ws_url、napcat_token、god_qq、group_whitelist、
   → 断 NapCat 重连 → 断桥接退款。
 
 ## 十二、待决（需用户拍板）
-Q1 接入方式：按上文选正向 WS（NapCat 作服务端，端口 3001）——
-   与 NoneBot 官方「反向 WS 推荐」相反，理由是 v1 不上 NoneBot（见 1.1/1.3）。
-Q2 费率与价目（6.1/6.2）：10 分钟 1 点 / 上限 30 点；lightning 3 / meteorite 12。
-Q3 meteorite 是否进待批队列（8.1）。
-Q4 group_whitelist 与 god_qq 的实际值（联机段才需要）。
+Q1 接入方式 —— 已拍板，见 D-024（默认反向 WS，bot 监听 6199/ws）。
+Q2 费率与价目 —— 已拍板，见 D-027。
+Q3 meteorite 是否进待批队列 —— 已拍板，见 D-026（进待批）。
+Q4 group_whitelist 与 god_qq 的实际值 —— 待定（R4-V 联机段前给值）。
