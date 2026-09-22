@@ -548,7 +548,7 @@
 asyncio_default_fixture_loop_scope 未设则刷警告。
 故 src\qqbot\pytest.ini 写三项：asyncio_mode = auto、loop_scope = function、testpaths = tests。
 异步测试直接 async def test_ 即可，勿加 @pytest.mark.asyncio。
-跑法：从项目根（含 src\qqbot 与 .venv-qqbot 的目录）执行 `python -m pytest src\qqbot -q`。
+跑法：从 E:\work\worldbox-ai 执行 `python -m pytest src\qqbot -q`（PYTHONPATH=src）。
 
 ### 27.5 C1~C6 六条硬约束 → 模块 / 函数 / 测试（防日后误删防呆）
 | 硬约束 | 落点模块.函数 | 对应测试 |
@@ -579,3 +579,48 @@ hold_attack / hold_build 的「查冷却 → hold → 写冷却」三步若各�
 3. PowerShell 下 grep 正则的转义层数与 bash 不同——把形如 `<盘符>:\...` 的用户目录
    反斜杠路径直接写进正则，会因多/少一层转义而静默 0 命中；本机曾因此误判 0 命中。
    核查路径类 grep 时改用单引号字符串包裹，或改用 Python re（case-sensitive、转义可控）。
+
+## 28. R4-2i / J-1 / K 轮：真机联调的协议与聚合结论（2026-09-22，实测验证）
+
+### 28.1 两桥 /cmd 信封（实测更正，推翻旧记录）
+- **8724 的 /cmd 响应一律无 ok 字段**（成功体 `{"result":{...},"tick":N}`、错误体 `{"error":{...}}`），
+  **8723 的 /cmd 带 ok**（成功 true / 失败 false）——三次采样确认；旧记录"8724 含 ok:true"作废。
+  /health 两桥均带 ok:true，但 **/cmd 与 /health 不一致**，勿以 /health 推断 /cmd。
+- 协议表（executor.BRIDGE_PROTOCOLS，显式 bridge id，不嗅端口）：8723 POST /cmd 用 `"name"` 键、
+  8724 用 `"command"` 键；token 头均 `X-WB-Token`；成功数据都在 `result` 下。
+- 体积实测：list_cities_ex 2362 B / list_armies 2140 B / list_cities 1321 B（CAP=65536，
+  余量 27.75×/30.62×/49.61×）；约 **295 B/城**，>≈22 城余量跌破 10×，>≈222 城真超限（B-4 不登记）。
+
+### 28.2 B-10 根因（一个根因四处表现；"测试全绿仍漏"的典型样本）
+- resolver 原 :295-296 注释自述的「list_cities_ex 为每国一条」是**根假设错误**：真桥为**每城一条**
+  （J-1.2-a count=8、kingdom 17 占 6 条）。该假设同时造成四个表象：
+  城数恒 1、人口取首城（49）、出兵线取首城（11/11）、城名显示国名（苍穹 帝国）。
+- 对账门无罪：cache_size=8 与 8723 count=8 对账通过，1 城是门之后 :278 `next(...)` 的选择结果
+  （门只验证列表完整性；1 城来自门之后的行选择，:278 是路径上唯一"取一条"动作）。
+- 排除法实证：CityEntry 构造 `str(k_id)`（:150）+ 比较 `key = str(kingdom_id)`（:277）⇒ str==str
+  匹配成功（实测 1 城）；若拿 int 17 直接比 str "17" 应为 0 城 ⇒ 类型不匹配假设被实测排除。
+- 修复后实测（真桥、paused 态，K-5 fixture 为 HTTP 边界喂入）：kingdom 17 → **6 城 / 364 /
+  军队 6（按 kingdom_id 计）/ 130/130**；kingdom 7 → 1 城 / 40 / 军队 1 / 17/17（正确的 1）；
+  kingdom 0 → country "0"（不再冒充城名「南星 帝国伯爵领」）。
+- 回执四数不同源：城数/总人口由 broadcaster 从 cities 列表重算（broadcaster.py:30-33），
+  s["population"] 不参与渲染；军队数/出兵线取 situation dict 标量（:35-37）。
+
+### 28.3 国名分隔符是 U+200A（HAIR SPACE）
+- 真桥返回的国名/城名里，词间分隔符是 **U+200A（`"\xe2\x80\x8a"`）**，不是普通空格；
+  手写桩/手抄原文必错字节（2362 B 的长度对不上）——fixture 必须以 `repr(bytes)` 逐字节落盘
+  （src\qqbot\tests\bridge_fixtures.py）。匹配侧：startswith 前缀匹配对用户输入"苍穹"仍命中
+  「苍穹\u200a帝国」，但（推测）用户手打全名加普通空格可能不命中 ⇒ 绑定与解析一律优先
+  kingdom_id（"17"），不以名字为准。
+
+### 28.4 其它实测更正
+- point_start=30 / point_cap=30 / point_rate_minutes=10（config 实值，非凭据可原值贴）；
+  ledger.py:111-113 默认 initial=5 / cap=30 / accrual_interval_sec=600.0 —— cap 与 accrual
+  与配置**巧合一致**，只有 initial 真错（30 未生效）⇒ D-031 接线修复（K-3 装配期 fail-fast）。
+- bindings 实际 **6 列**（多出 `state` TEXT NOT NULL DEFAULT 'active'，ARCH:79 声明 5 列）；
+  kingdom_name_snapshot 实读 '17'（非国名快照；成因 bot.py:354 把 name 同时当 kingdom_id 与快照传入）。
+- **500 GAME_CRASH 可由调用方参数错触发**（invoke_power 缺 x/y → System.ArgumentException）⇒
+  错误映射仍归 LINK_ERROR（世界是否已动不可知，退款 + 文案分叉）。
+- 8724 读 401 响应体曾抛 ConnectionResetError（WinError 10054）⇒ executor 的 e.read() 必须包 try，
+  读体失败不得改变归档档位（I-2.7）。
+- 点数行**懒创建**：ledger.py:220-221/265-266 首次 accrue/hold 才 INSERT；points 表 0 行 =
+  "未生成"状态，既非实读也非默认值。
