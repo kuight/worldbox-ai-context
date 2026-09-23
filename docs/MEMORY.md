@@ -13,6 +13,9 @@
 |---|---|
 | 游戏 | WorldBox 0.51.2（学习版）E:\game\worldbox |
 | 存档 | <WORLDBOX_SAVE_DIR> |
+| **备份根（<BACKUP_ROOT>）** | **F:\R4V-backups\**（2026-09-23 Y-1.2 由 C 盘迁入；不在系统盘、不在游戏/项目盘） |
+| 备份根（旧，已迁出） | ~~C:<USER-DIR>\R4V-backups\~~ ——已迁出；仅余 WorldBox-pre-V3-20260923-000900（3.47 GB）待用户手动删除 |
+| 本测试世界存档本体 | `saves\save10`（map.meta: name "Mystery and Rain"、4×4、cities 8）；最小回滚集 = map.meta + map.wbox + map_stats.s3db + EmpireCraftModData.json = 17,943,217 B |
 | 项目根 | E:\work\worldbox-ai\（docs/downloads/extracted/backup/snapshots/logs/screenshots/src） |
 | 多项目根 | E:\work（勿在根下裸放本项目文件；PROJECT_STATE.md 下划线版属 MC 项目） |
 | 项目交接文档 | docs\WORLDBOX-PROJECT-STATE.md（唯一权威状态文档） |
