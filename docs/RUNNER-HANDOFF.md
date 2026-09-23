@@ -17,8 +17,53 @@
 - **本轮停点：K-7.4 —— 等用户在白名单群发一次 `.国情`**（回执原文从 K-4 新增日志取，不截图转写）；
   其后 K-7.5~K-7.7（对照表 / bindings 逐字不变 / points 行数）→ K-8 收尾（HANDOFF/MEMORY/SESSION-LOG/提交/镜像/完成汇报）→ 停报等裁决是否进 V-3。
 - 当前 src 侧 commit：**c50f0fc9ded03ffb8d9b42ca585f4823ca0ed4ad**（K-1.5 基线）+ K-2/K-3/K-4/K-5 未提交改动（K-8.3 收口），pytest **159 用例**全过。
+- ★★ K-8 已收口（2026-09-23 00:20）：本地提交 **2dc10d6db4026e578af09cc8440c0eb0b1ad5055**
+  （B-10/D-031/B-12），镜像 **645a08bdeca119041a6a9d3db1d3ad2cb45bcae4** 已推送
+  （0e2fa27..645a08b）；K-7.4~7.7 全过（.国情 6 城/364/军队 6/130-130，bindings 逐字不变，
+  points=0 标注"未验证正路径"）。回执落盘 完成汇报.txt（旧文件另存 完成汇报-R4V-J1.txt）与 回执.txt。
+- ★★ 当前任务书已切换到 **V-3（首个改世界动作 .造 wall_*）**，含补充裁决 A（墙型 wall_iron、
+  A-3 的 60 秒双指令时间窗、A-4 的 B-15 登记）与 **补充裁决 B（长期有效）**：
+  - **B-1 回执顺序（长期）**：本地提交 → 脱敏闸门 → 推镜像 → 只向参谋侧报摘要（硬上限 15 行：
+    镜像 SHA / 本地 SHA / 停报条目编号 / pytest 计数 / 关键数值≤6 行 / 待裁决问题≤2 条）。
+    完整回执照常落盘 完成汇报.txt 与 SESSION-LOG，不贴进对话。
+  - **B-2**：SESSION-LOG 与 RUNNER-HANDOFF 必须在推镜像前写完本轮内容，不得留到下一轮补。
+  - **B-3 预授权**（不必等参谋侧回复，直接执行并记录）：a) V-3.0.4 新基线正常（三份原文全量落盘
+    + tick 两次取样严格递增 + pending_approval=0 + city_cooldown=0 + A-3 脚本待命）→ 放行造墙；
+    b) 自动存盘观测到 → 不停轮，造墙前 2 分钟内现拷冷备份后继续；c) 7.4 有功能差异 → 改选最接近
+    "纯外观"的墙型并贴原文；d) 存档有变 → 冷拷后继续。
+  - **B-4 仍须停报**：a) resume 非 2xx / paused 仍为 true / tick 不递增；b) 造墙后 balance≠29；
+    c) city_cooldown 新增行；d) accepted 但 building_count 前后无变化且对照城也无变化；
+    e) 任何需改 resolver.py / bot.py / executor.py 的发现（H1 冻结）。
+- **V-3 进度**：V-3.0.1 价目原文 ✓（七种墙各 1 点/meteorite 12/lightning 3，旧"净耗 19 点"作废）；
+  V-3.0.2a-c ✓（存档 369 文件/3,473,204,170 B；与 V-0=363/429,174,461 B 比对；冷拷
+  **WorldBox-pre-V3-20260923-000900**）；V-3.0.2d 观测到自动存盘（每 300 秒一槽，暂停态也写）→
+  用户裁决"继续"=接受为游戏固有行为；V-3.0.3b resume 两次执行（第一次成功后用户点开面板再暂停；
+  第二次 previous_paused=false）；**V-3.0.3c 发现 get_world_state 的 paused 字段与 resume 命令口径
+  矛盾（paused=true 但 tick 以 ~59/s 持续推进）→ 判据改 tick 差值（D-033/B-18）**；
+  **V-3.2.1 勘查发现 B-16/B-17（.造 own 目标解析恒 CITY_GONE，见缺陷表）→ H1 停报**。
+- ★★ **当前任务书 = W 段（完整版）**：先补镜像并回灌证据（W-0，不改 src），再修 B-16/B-17（W-3，等放行），
+  最后续跑造墙验收（W-6 预授权）。**当前停点 = W-0.6（镜像推送后停报）**。
+- ★★ **W 段实测差异（须先知晓，已按常设条款上报）**：世界自 2026-09-23 00:52 resume 后已连续运行约 12 小时
+  ⇒ **kingdom 17（苍穹 帝国）已灭亡**（`KINGDOM17_CITIES=0`，`KINGDOMS_IN_CITIES_EX=[0,7,18,20]`），
+  其旧城被 kingdom 20（辉腾衮 叛乱）与 18（清泉 帝国）接管；`kingdoms_ever_created` 17→21。
+  **绑定 kingdom_id="17" 现已指向不存在的王国（缺陷 E 后果）**；造墙目标城 id 6（辉腾衮 堡）现属
+  kingdom 20 ⇒ V-3.2/V-6 的"我国 <城名>"目标语义与目标城需按此重定。
+  第二条 `.国情`（2026-09-23 12:29:31）回执 `【17国情】` 即 K-2.6b 的 0 城分支（按设计工作）。
+- **V-3 / W-0 证据全文**：`docs\SESSION-LOG\2026-09-22-R4-V.md`（W-1 十二项原文，含三份桥原文、
+  逐城表、resume 逐字、B-18 摘录、B-16 现场、事务四表、pending_approval、SHA/status/pytest）。
+- **pytest 基线**：159 passed（K-5.4 连跑 3 次 2.99/2.93/2.96s）；W-3 修复后 W-5 要求 ≥165。
+- **当前 src HEAD**：`2dc10d6db4026e578af09cc8440c0eb0b1ad5055`（K-8.3 收口）；
+  `git status --short` = `M docs/RUNNER-HANDOFF.md`（V-3/W-0 文档改动，W-0.6 提交）。
 
 ## 2. 本轮已动过的文件
+- ★ **W 段（文档，不改 src）**：`docs\SESSION-LOG\2026-09-22-R4-V.md`（新，W-1 十二项原文回灌）、
+  `docs\DECISIONS.md`（追加 D-032 / D-033）、`docs\RUNNER-HANDOFF.md`（本文件：§1 改 W 段 + 缺陷表补
+  B-15/B-16/B-17/B-18）、镜像侧 `docs\INDEX.md`（新增 SESSION-LOG 条目 + 字节数/轮次列）。
+  W-3 修复将动 `src\qqbot\resolver.py` 与 `src\qqbot\bot.py` 的 own 目标解析与错误码映射（仅此范围）。
+- ★ **V-3 段（文档）**：`docs\RUNNER-HANDOFF.md`（V-3 进度 + 裁决 B 落档 + B-15/B-16 登记）、
+  `<USER-DIR>\回执.txt`（覆盖重写，只留当前轮报告）、
+  `<USER-DIR>\完成汇报-R4V-J1.txt`（旧汇报另存）。
+  取证脚本（仓库外）：`_w1_collect.py` / `_w1_out.txt` / `_j1_forensic.py` / `_k5_gen_fixture.py`。
 - **src\qqbot\resolver.py**（K-2：read_situation 改"取全部匹配行"，治 B-10 的四个表象：城数恒 1 /
   人口取首城 / 出兵线取首城 / 城名显示国名；新增 K-2.8 双键 is_alive + is_alive_raw、
   K-2.9 country 与城名拆开（禁止回落城名）、K-2.6b 两种 0 城情形的 detail 可区分（数字 id vs 名字）；
@@ -123,6 +168,36 @@
   armies 取数失败时 resolver :305-314 返回 None（未知，绝不报 0），但 broadcaster.py:35
   `int(s.get("army_count", 0) or 0)` 把 None 吃成 0 ⇒ 回执显示「军队数：0」，与 B-2.4
   「绝不报 0 支军队」的声明矛盾。当前行为已由 K-5.2i 快照锁定（测试注释写明非期望行为）。
+- **缺陷 B-15（登记不修；★V-5 开始前须用户拍板★）— D-027 价目与 QQBOT-DESIGN 6.2 设计原则不一致**
+  QQBOT-DESIGN 6.2 原文「每座城市一个独立『被打击冷却』。首发全价，冷却期内对同城重复打击
+  照收全价且明示『预期无效』」，但 config.local.json 与 catalog.py 中 lightning 仅 price=3、
+  city_cooldown=0（仅 meteorite 有 1800 秒）⇒ 打击类的 lightning 无城市冷却。
+  性质：价目与设计原则不一致，**非代码缺陷**。影响：V-5（lightning）缺失 6.2 的反车轮战机制，
+  同城可无限连打。处置：★ V-5 前须用户拍板（补 lightning 城市冷却 = 改 config 不动码 / 或修正
+  6.2 口径）；本轮不动 config。
+- **缺陷 B-16（本轮发现，登记；★需改 bot.py/resolver.py → H1 冻结，停报等裁决★）—
+  .造 own 目标解析恒 CITY_GONE**
+  `bot.py _resolve_coords` 的 own 路径把 `binding.kingdom_id`（"17"）当**城名**传给
+  `resolver.resolve_city`，而 resolve_city 的匹配器只按**城名 startswith**（resolver.py:220
+  `hits = self._match([c.name for c in cities], name)`）⇒ "17" 永不命中 → **CITY_GONE**
+  ⇒ `.造 wall_iron`（默认目标 我城）与 `.造 wall_iron 在 我国 <城名>` 永远回
+  「该城『17』已不存在」；且 own_city_named 的命名城被忽略（name 已被 binding 占位：
+  `name = name or target.get("city")` 在 name 非 None 时不读 city）。
+  证据（进程内只读实验，真桥 fixture）：`RESOLVE_CITY('17') → CITY_GONE candidates=[]`；
+  `RESOLVE_CITY('辉腾衮') → OK name='辉腾衮\u200a帝国伯爵领' x=246 y=15`（城名匹配本身正常）。
+  性质：**先于 B-10 修复即存在**（resolve_city 的城名匹配未被 B-10 触碰）——own 路径从未
+  端到端验证过。修复方向：own 路径改按 kingdom_id 取该国城（或取 capital/指定城）；
+  修复前 V-3.2 造墙无法执行。**W 段修复（D-032 语义）。**
+- **缺陷 B-17（本段随 B-16 一并修复）— 名称未匹配被误报为 CITY_GONE**
+  违反 ARCH §3.3（解析失败应回「看不懂这个目标」+ 示例）与 §5.5/§5.4（CITY_GONE 仅在
+  对账通过后且 city_id 不再出现在列表中时才成立）。错误码必须三分且文案可区分：
+  NOT_FOUND（名称未匹配任何城，含把 id 当城名的历史入参）/ UNSTABLE（C5 对账未通过，
+  退避 2s 重拉最多 3 次）/ CITY_GONE（仅对账通过且 city_id 不在 list_cities_ex 中）。
+- **缺陷 B-18（本段只登记；判据改造随 C6 实装落地）— get_world_state.paused 与
+  previous_paused / tick 速率矛盾**
+  实测（2026-09-23 00:52）：resume 响应（00:52:56.476）`previous_paused=false`，而 18ms 前的
+  get_world_state（00:52:56.458）`paused=true`；且 `paused=true` 期间 tick 以 ~59/s 持续推进
+  （+711/12s、+593/10s）。⇒ 判据改为 **tick 差值**（D-033）；C6 实装时不得读 paused。
 - **defect E（登记不修；★E 修好前禁止任何重绑，含 .bind 16★）— .bind 未校验 kingdom_id 存在性**
   全仓 list_kingdoms 仅命中 executor.py 协议表映射；bot.py:_h_bind 直接 bind_async ⇒ 未实装
   （后果：可绑定不存在的王国，如已消亡的 14 / 不存在的 16）。ARCH §4.2 要求绑定时校验。
