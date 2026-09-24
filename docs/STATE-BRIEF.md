@@ -53,6 +53,26 @@
     均 `paused=false`，**DIFF 593/594 per 10 s ⇒ 约 59.3 tick/s**。
   - ⇒ 屏幕在动 + 语义量（年份）在涨 + 界面非暂停，三者一致 ⇒ **情形 P：tick 为真，世界确在运行**；
     **不是情形 Q**。**Z-2/Z-3 未执行，须等参谋侧放行。**
+    ★修订（2026-09-25，Z-3.0a）：**情形 P 仅证明运行态下画面与 tick 同步增长，不区分 S-1.1
+    （世界时间 vs 帧计数），D-033 仍待定**。
+    【已作废·仅留追溯】原表述：「情形 P：tick 为真，世界确在运行」。
+  - ★ Z-2 状态（Z-3.0b）：**未执行（参谋侧裁决）**——干净进程目的已由重启后 PID 11784 替代；
+    手动存盘会覆盖已核实的 save10 基准存档；**不构成合规 Z-2 执行记录**。
+  - ★★ **Z-3 续停报（2026-09-25 00:40）：停点 = Z-3.1，停报条件 u 触发** ——
+  Z-3.1a PASS（游戏仍 PID 11784、自 LastBootUpTime 起无睡眠/唤醒事件，正样本近 3 日
+  Kernel-Power=30 条）；Z-3.1c PASS（**get_world_state 不返回年份/世界时间字段**，
+  字段仅 width/height/seed/tick/paused/population_alive/population_lifetime/kingdoms_alive/
+  kingdoms_ever_created/cities_alive/cities_ever_created）；
+  **Z-3.1b FAIL**：save10 的 `map.meta` SHA256（386116dae9f54c39…）≠ Z-0.11 备份
+  （53d7cc430d903934…）——该文件于 **2026-09-25 00:20:44**（载入世界后约 1.7 分钟）被改写，
+  差异**仅两处**：`modsActive` 数组顺序 与 `timestamp`（1789990500.96 → 1790266844.79），
+  **mapStats 逐键无差异**，且 `map.wbox` / `map_stats.s3db` / `EmpireCraftModData.json`
+  mtime 仍为 2026-09-17 13:28:49 **未变** ⇒ 属「载入时元数据刷新」而非存盘覆盖世界。
+  ⇒ **Z-3.2~Z-3.6 未执行、本轮零改世界动作（未发 pause/resume）、未启动 bot、未进 Z-4/Z-5。**
+  待参谋侧裁决：① 是否接受 map.meta 的元数据刷新为可忽略差异并放行 Z-3.2~Z-3.6；
+  ② 或改为以「世界数据三件（map.wbox / map_stats.s3db / EmpireCraftModData.json）」为核对集。
+- ★ 绑定登记（Z-3.0c，只登记不修改）：bindings 唯一一条绑定指向 **kingdom 17**，该王国实测**已不存在**；
+  待 defect E + D-036 通道实装后处理，本轮不动库。
   - 附带实测（供 S-1.1 继续取证，不改本轮判定）：速度 **1x** 而 tick 仍 ~59.3/s（与"tick≈60 FPS
     帧计数"相容）；**tick 载入后由 ~6.73e6 重置为 10,235 ⇒ 不随存档持久**；
     **seed 字段本次读到 2，此前 V-3/W/X/Y 各段一律 6，但城市名与坐标逐座一致 ⇒ seed 跨会话会变、
