@@ -72,6 +72,34 @@
     B-21R、S-1.2、S-1.3、三次基线作废中的「连续运行 12 小时」时长推断。
     详见 `docs/SESSION-LOG/2026-09-22-R4-V.md`【Z-8 审计】节。
   - **未启动 bot；未进 Z-5 / Y-3.x。**
+- ★★★ **Z-5 收尾（2026-09-25 13:1x）：代码段落地，183 用例全绿，项目当前无阻塞项**
+  - **Z-5.0**：B-21R 由「当前阻塞项」降为「**历史事件 · 不可判定**」（依据 Z-8 审计 + Z-3 干净进程
+    在 D-041 口径下冻结 20 分钟）⇒ **项目当前无阻塞项**；S-1.2 开放（仅当「暂停须跨越睡眠」时再测）；
+    不重做不可判定项（历史期无语义量采样、旧进程已不存在）。
+  - **Z-5.1**：Y 段任务书原文 **「未找到」**（docs 与四份本地回执全 0 命中，正样本已附）
+    ⇒ `docs/Y-TASKBOOK.md` 只写「未找到」与证据，**不重建**。此后 Z-5.2 以**已归档等价要求**
+    （D-032 / D-036 / D-041 / Y-4 登记 / X-2 禁改清单）为执行依据。
+  - **Z-5.2 代码修复**（解冻范围：resolver.py / bot.py / broadcaster.py / tests\*）：
+    `resolver.py` —— B-19 空白归一化（**去空白**，仅比较用）、B-17 错误码三分
+    （`resolve_city` 0 命中 ⇒ **NOT_FOUND**；新增 `resolve_city_by_id` ⇒ **CITY_GONE**；
+    对账未过 ⇒ 一律 **UNSTABLE**）、D-032 own 拆参（`resolve_own_city` / `resolve_own_capital` /
+    `lookup_kingdom` / `_same_kingdom` 类型归一）、`list_kingdoms` 取数与 TTL 缓存；
+    `bot.py` —— own 三形态路由（**不再把 kingdom_id 当城名**，B-16）、`.bind` 存在性校验
+    （不存在 / 已无城池两种文案）+ **D-036 国灭免批重绑通道**（dead→active、免点）、NOT_FOUND 文案；
+    `broadcaster.py` —— **B-14**（None ⇒「军队数：未知（读取失败）」）。
+  - **对账门**（`resolver.py` 缓存+对账块）**逐字未动**：内容级 SHA 前后均 `c85f6a72…`；
+    固定行号比对会因新增行下移而显假不一致（已说明，停报条件 ab 不触发）。
+  - 禁改文件逐个核对 result：`ledger.py` / `executor.py` / `adapter.py` / `catalog.py` /
+    `approval.py` / `parser.py` / `receipt.py` / `config.local.json` **全部未改**。
+  - **Z-5.3**：fixture `tests/bridge_fixtures_z72.py`（Z-7.2 的 S1/S2 真实桥原文逐字节；
+    文件头注明「非冻结态采样，仅供解析逻辑回归，不得用作世界状态基准」；S0 未落盘故不含，
+    改名对照用派生体）；新增用例 `test_own_target.py`（14 条）+ `test_bot.py`（+7 条）；
+    改写 K-5.2i（锁定修复后行为）与 CITY_GONE 用例。
+  - **Z-5.4**：pytest 连跑 3 次 **183 passed**（3.18s / 3.16s / 3.14s；基线 159 → 183）。
+  - **Z-5.5**：未启动游戏/bot、未改 DB、**零改世界动作**。
+  - ★三项如实登记：① B-19 比较口径取「去空白」（字面「压成单空格」无法满足「无空格也命中」）；
+    ② broadcaster 实际改 5 行（字面「仅 1 行」）；③ **新增缺陷 B-23**（重绑未写 ledger_log；
+    ledger.py 属禁改 ⇒ 只登记不修）。
 - ★★ **（历史）Z-1 判定结果：情形 P（2026-09-25 00:29；其含义已按 Z-3.0a 修订）**：
   - 游戏由执行侧启动（`Start-Process E:\game\worldbox\worldbox.exe`，PID 11784，00:19:00.652；
     两桥 /health 00:19:26 均 200）；用户经 GUI 载入 **save10**（执行侧未调用任何载入类 API）。
